@@ -14,7 +14,7 @@ import tldextract
 '''
 Dependencies:
     1) exiftool.exe must be placed in the same location as pycon.py
-    2) pip install tqdm mechanize beautifulsoup tldextract
+    2) pip install tqdm mechanize beautifulsoup tldextract dnspython
 '''
 
 class bcolors:
