@@ -8,15 +8,18 @@ import tqdm
 import argparse
 import time
 import sys
+import dns.resolver
+import tldextract
 
 '''
 Dependencies:
     1) exiftool.exe must be placed in the same location as pycon.py
-    2) pip install tqdm mechanize beautifulsoup
+    2) pip install tqdm mechanize beautifulsoup tldextract
 '''
 
 class bcolors:
 
+    '''Colors'''
     Default = '\033[99m'
     Cyan = '\033[96m'
     White = '\033[97m'
@@ -120,13 +123,38 @@ def pickAgent():
     userAgent = random.choice(userAgentList)
     return userAgent
 
-'''
-// This is here just in case its needed in the future
 
-def buildGoogleSearchURL(site,type):
+def buildGoogleDocSearchURL(browser,site,type):
+    mechBrowser = browser
     searchURL = "https://www.google.com/search?q=site:"+site+"+filetype:"+type+"&num=100"
-    return searchURL
-'''
+    openGoogle = mechBrowser.open(searchURL)
+    openGoogle.read()
+    response = mechBrowser.geturl()
+    return response
+
+
+def getDNSData(linklist,dnslist):
+    dnsLookupList = []
+    dnsResolver = dns.resolver.Resolver()
+    domain = re.compile('(?:https?://([a-zA-Z0-9\-\.]+))\/')
+    domainMatch = re.compile(site+'$')
+    for link in linklist:
+        dnsSites = domain.findall(link)
+        for dnsSite in dnsSites:
+            tldTest = tldextract.extract(dnsSite)
+            domainTLD = (tldTest.domain, tldTest.suffix)
+            domainTLD = '.'.join(domainTLD[:2])
+            if domainMatch.match(domainTLD):
+                dnsLookupList.append(dnsSite)
+    results = list(set(dnsLookupList))
+    for result in results:
+        try:
+            dnsAnswers = dnsResolver.query(result, "A")
+            for answer in dnsAnswers:
+                dnsStr = result+':'+str(answer)
+                dnslist.append(dnsStr)
+        except:
+            continue
 
 def googleFileSearchForm(browser,site,type):
     mechBrowser = browser
@@ -190,35 +218,24 @@ def getMetaData(filename,userlist,softwarelist,logToFile):
 
     try:
         metaDataRaw = subprocess.check_output(executable=exiftool,args=basic)
-        email_regex = re.compile('(\w+[.|\w]*@\w+[.]*\w+)')
-        last_regex = re.compile('Last Modified By\s+:\s(.*)\r')
-        author_regex = re.compile('Author\s+:\s(.*)\r')
-        software_regex = re.compile('Software\s+:\s(.*)\r')
-        software_regex2 = re.compile('Producer\s+:\s(.*)\r')
-        software_regex3 = re.compile('Application\s+:\s(.*)\r')
-        software_regex4 = re.compile('Creator\w+\s+:\s(.*)\r')
-        lastModified = last_regex.findall(metaDataRaw)
-        if lastModified:
-            userlist.extend(lastModified)
-        createdBy = author_regex.findall(metaDataRaw)
-        if createdBy:
-            userlist.extend(createdBy)
+        #email_regex = re.compile('(\w+[.|\w]*@\w+[.]*\w+)')
+        email_regex = re.compile('(\w+[.|\w]*@%s)'%site)
+        user_regex = re.compile('(?:Author|"Last Modified By")\s+:\s(.*)\r')
+        software_regex = re.compile('(?:Software|Producer|Application)\s+:\s(.*)\r')
+
+        user = user_regex.findall(metaDataRaw)
+        if user:
+            userlist.extend(user)
+
         emails = email_regex.findall(metaDataRaw)
         if emails:
             for email in emails:
-                userlist.extend(email.lower())
+                userlist.append(email.lower())
+
         software = software_regex.findall(metaDataRaw)
         if software:
             softwarelist.extend(software)
-        software2 = software_regex2.findall(metaDataRaw)
-        if software2:
-            softwarelist.extend(software2)
-        software3 = software_regex3.findall(metaDataRaw)
-        if software3:
-            softwarelist.extend(software3)
-        software4 = software_regex3.findall(metaDataRaw)
-        if software4:
-            softwarelist.extend(software4)
+
         if logToFile:
             dataToFile(metaDataRaw)
     except:
@@ -235,9 +252,11 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
     mechBrowser = mechBrowserBuild()
     fileList = []
     typeList = fileTypeList
+    dnsList = []
 
     for filetype in typeList:
-        search = googleFileSearchForm(mechBrowser,site,filetype)
+        #search = googleFileSearchForm(mechBrowser,site,filetype)
+        search = buildGoogleDocSearchURL(mechBrowser,site,filetype)
 
         isNextPage = True
 
@@ -250,9 +269,9 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
             else:
                 search = nextPage
 
-    result = list(set(fileList))
+    links = list(set(fileList))
     print "\r\n[*] Discovered Links: \r\n"
-    for link in result:
+    for link in links:
         print "\t[+]: " +  link
 
     if examine:
@@ -260,7 +279,7 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
         userList = []
 
         print "\r\n"
-        for link in tqdm.tqdm(result):
+        for link in tqdm.tqdm(links):
             try:
                 fileName = downloadPage(mechBrowser,link)
                 getMetaData(fileName, userList, softwareList, logToFile)
@@ -277,6 +296,15 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
         print "\r\n[*]Software: "
         for software in result:
             print "\t" + strip_non_ascii(software)
+
+        getDNSData(links,dnsList)
+
+        print "\r\n[*]DNS A Records: "
+        if len(dnsList) > 0:
+            for dnsResult in dnsList:
+                print "\t" + dnsResult
+        else:
+            print "\t[-]No DNS A records discovered"
 
 def dataToFile(data):
     curDate = time.strftime("%Y-%m-%d")
@@ -302,14 +330,14 @@ def beatifulSoupActiveLink(scrape,linkList):
     findHTTP = re.compile('(http.+)')
     soupy = BeautifulSoup(scrape)
     links = soupy.findAll("h3", {"class": "r"})
-    noDocs_regex = re.compile('(.+(\.pdf|\.doc|\.docx))')
-    noGoogleBooks = re.compile('books\.google\.com')
+    #noDocs_regex = re.compile('(.+(\.pdf|\.doc|\.docx))')
+    #noGoogleBooks = re.compile('books\.google\.com')
     for link in links:
         link2 = link.find("a")['href']
         if findHTTP.findall(link2):
-            if not noDocs_regex.findall(link2):
-                if not noGoogleBooks.findall(link2):
-                    linkList.append(link2)
+            linkList.append(link2)
+            #if not noDocs_regex.findall(link2):
+            #    if not noGoogleBooks.findall(link2):
 
 def getEmail(scrape,emaillist,site):
     email_regex = re.compile('(\w+[.|\w]*@%s)'%site)
@@ -334,7 +362,7 @@ def googleEmailFinder(site):
     mechBrowser = mechBrowserBuild()
     linkList = []
     emailList = []
-
+    dnsList = []
     search = buildGoogleSpecifcSearchURL(mechBrowser,site)
 
     isNextPage = True
@@ -353,12 +381,12 @@ def googleEmailFinder(site):
         else:
             search = nextPage
 
-    result = list(set(linkList))
+    links = list(set(linkList))
     print "\r\n[*] Discovered Links: \r\n"
-    for link in result:
+    for link in links:
         print "\t[+]: " +  str(link)
 
-    for link in tqdm.tqdm(result):
+    for link in tqdm.tqdm(links):
         try:
             scrape = viewPage(mechBrowser,link)
             getEmail(scrape,emailList,site)
@@ -371,6 +399,15 @@ def googleEmailFinder(site):
     print "\r\n[*]Emails Discovered (%d): "%len(emails)
     for email in emails:
         print "\t" + email
+
+    getDNSData(links,dnsList)
+
+    print "\r\n[*]DNS A Records: "
+    if len(dnsList) > 0:
+        for dnsResult in dnsList:
+            print "\t" + dnsResult
+    else:
+        print "\t[-]No DNS A records discovered"
 
 def main():
     if len(sys.argv) < 2:
