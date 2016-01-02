@@ -82,6 +82,8 @@ parser.add_argument("-t","--type",nargs='+',help='Specify file types separated b
 
 parser.add_argument("-l","--logmeta",help='Log all metadata pulled from files. Saves .txt file in current directory',action="store_true")
 
+parser.add_argument("-dns","--dnslookup",help='Requests DNS information from dnsdumpser.com. Thanks @hackertarget!',action="store_true")
+
 args = parser.parse_args()
 
 doc = args.documents
@@ -91,6 +93,7 @@ examine = args.examine
 fileTypeList = args.type
 logData = args.logmeta
 cache = args.cached
+dnslookup = args.dnslookup
 
 exiftool = 'exiftool.exe'
 
@@ -382,7 +385,7 @@ def googleEmailFinder(site):
             search = nextPage
 
     links = list(set(linkList))
-    print "\r\n[*] Discovered Links: \r\n"
+    print "\r\n[*] Discovered Links (%d): \r\n"%len(links)
     for link in links:
         print "\t[+]: " +  str(link)
 
@@ -409,6 +412,29 @@ def googleEmailFinder(site):
     else:
         print "\t[-]No DNS A records discovered"
 
+
+def dnslookupHT(browser,site):
+
+    mechBrowser = browser
+    htLink = 'http://api.hackertarget.com/hostsearch/?q='+site
+    openHT = mechBrowser.open(htLink)
+    dnsDataRaw = openHT.read()
+
+    dnsData = dnsDataRaw.replace(',',':').split('\n')
+
+
+    print "[+] DNS Host Records (%d):"%len(dnsData)
+    for record in dnsData:
+        print "\t" + record
+
+    print bcolors.BOLD + bcolors.Red + "(DNS host records provided by HackerTarget.com)" + bcolors.ENDC
+
+def hackerTargetDNS(site):
+    waitBanner()
+    mechBrowser = mechBrowserBuild()
+    dnslookupHT(mechBrowser,site)
+
+
 def main():
     if len(sys.argv) < 2:
         parser.print_help()
@@ -417,6 +443,10 @@ def main():
         googleFileFinder(site,examine,fileTypeList,logData)
     if emailSearch:
         googleEmailFinder(site)
+    if dnslookup:
+        hackerTargetDNS(site)
+
+
 
 if __name__ == "__main__":
     main()
