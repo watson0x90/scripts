@@ -10,6 +10,8 @@ import sys
 import dns.resolver
 import tldextract
 import urllib2
+
+
 from cookielib import CookieJar
 
 '''
@@ -38,12 +40,13 @@ class bcolors:
 
 
 asciiBanner = \
-    "\n      _                  _     " \
-    "\n     | |_ _ __ __ _  ___| | __ " \
-    "\n     | __| '__/ _` |/ __| |/ / " \
-    "\n     | |_| | | (_| | (__|   <  " \
-    "\n      \__|_|  \__,_|\___|_|\_\ " \
-    "\n" \
+    "\n    ______               _  ______ "\
+    "\n    |  ___|             | | | ___ \  "\
+    "\n    | |_ _ __ ___  _ __ | |_| |_/ /   _ _ __  _ __   ___ _ __ " \
+    "\n    |  _| '__/ _ \| '_ \| __|    / | | | '_ \| '_ \ / _ \ '__| " \
+    "\n    | | | | | (_) | | | | |_| |\ \ |_| | | | | | | |  __/ |    " \
+    "\n    \_| |_|  \___/|_| |_|\__\_| \_\__,_|_| |_|_| |_|\___|_|   " \
+    "\n "\
     "\n\r\n"
 
 
@@ -59,13 +62,13 @@ def waitBanner():
 def exampleUsage():
     print bcolors.BOLD + bcolors.Green + "\r\n[*]Usage Explained:" + bcolors.ENDC
     print bcolors.BOLD + bcolors.Yellow + "\t\r\n[*]Email search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -email -d example.com" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -email -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Default document search (search for all document types):" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -doc -e -d example.com" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -e -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Specific document search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
 
 
 typeList = ["doc", "docx", "xls", "xlsx", "pdf", "ppt", "pptx", "pps", "ppsx", "sxw", "sxc", "odt", "ods", "odg", "odp",
