@@ -1,5 +1,4 @@
 from BeautifulSoup import BeautifulSoup
-import mechanize
 import random
 import re
 import subprocess
@@ -10,10 +9,12 @@ import time
 import sys
 import dns.resolver
 import tldextract
+import urllib2
+from cookielib import CookieJar
 
 '''
 Dependencies:
-    1) exiftool.exe must be placed in the same location as pycon.py
+    1) exiftool.exe must be placed in the same location as python script
     2) pip install tqdm mechanize beautifulsoup tldextract dnspython
 '''
 
@@ -35,18 +36,18 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+asciiBanner = \
+"\n      _                  _     "\
+"\n     | |_ _ __ __ _  ___| | __ " \
+"\n     | __| '__/ _` |/ __| |/ / " \
+"\n     | |_| | | (_| | (__|   <  " \
+"\n      \__|_|  \__,_|\___|_|\_\ " \
+"\n"\
+"\n\r\n"
+
 def banner():
 
-    pyconBanner = "\n       ____" \
-"\n      / __ \__  ___________  ____" \
-"\n     / /_/ / / / / ___/ __ \/ __ \ "\
-"\n    / ____/ /_/ / /__/ /_/ / / / /"\
-"\n   /_/    \__, /\___/\____/_/ /_/"\
-"\n         /____/ " \
-"\n" \
-"\n- Because recon doesnt have to suck -\n"
-
-    print bcolors.Green + pyconBanner + bcolors.ENDC
+    print bcolors.Green + asciiBanner + bcolors.ENDC
 
 def waitBanner():
     wait = "Discovering... this may take a moment...\r\n"
@@ -56,13 +57,13 @@ def exampleUsage():
 
     print bcolors.BOLD + bcolors.Green + "\r\n[*]Usage Explained:" + bcolors.ENDC
     print bcolors.BOLD + bcolors.Yellow + "\t\r\n[*]Email search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python pycon.py -email -d example.com" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -email -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Default document search (search for all document types):" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python pycon.py -doc -d example.com" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -doc -e -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Specific document search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python pycon.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python track.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
 
 
 typeList = ["doc","docx","xls","xlsx","pdf","ppt","pptx","pps","ppsx","sxw","sxc","odt","ods","odg","odp","wdp","svg","svgs","indd","rdp","ica"]
@@ -82,7 +83,9 @@ parser.add_argument("-t","--type",nargs='+',help='Specify file types separated b
 
 parser.add_argument("-l","--logmeta",help='Log all metadata pulled from files. Saves .txt file in current directory',action="store_true")
 
-parser.add_argument("-dns","--dnslookup",help='Requests DNS information from dnsdumpser.com. Thanks @hackertarget!',action="store_true")
+parser.add_argument("-dns","--dnslookup",help='Requests DNS Host Record information from hackertarget.com. Thanks @hackertarget!',action="store_true")
+
+parser.add_argument("-z","--zoneTransfer",help='Requests a Zone Transfer performed by hackertarget.com. Thanks @hackertarget!',action="store_true")
 
 args = parser.parse_args()
 
@@ -94,23 +97,19 @@ fileTypeList = args.type
 logData = args.logmeta
 cache = args.cached
 dnslookup = args.dnslookup
+zoneTransfer = args.zoneTransfer
+
+curDate = time.strftime("%Y-%m-%d")
+#htmlFileName = site+"-"+curDate+"-pyrecon.html"
+
 
 exiftool = 'exiftool.exe'
 
-def mechBrowserBuild():
 
-    #Basic Building Blocks
-    browser = mechanize.Browser()
-    cookieJar = mechanize.CookieJar()
-
-    #BrowserOptions
-    browser.set_cookiejar(cookieJar)
-    browser.addheaders = [('user-agent', pickAgent())]
-    browser.set_handle_equiv(True)
-    browser.set_handle_redirect(True)
-    browser.set_handle_referer(True)
-    browser.set_handle_robots(False)
-    browser.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time=1)
+def urllib2BrowserBuild():
+    cookies = CookieJar()
+    browser = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
+    browser.addheaders = [('User-Agent', pickAgent())]
 
     return browser
 
@@ -126,15 +125,16 @@ def pickAgent():
     userAgent = random.choice(userAgentList)
     return userAgent
 
+def sleepS():
+    st = random.randint(1,8)
+    time.sleep(st)
 
 def buildGoogleDocSearchURL(browser,site,type):
-    mechBrowser = browser
-    searchURL = "https://www.google.com/search?q=site:"+site+"+filetype:"+type+"&num=100"
-    openGoogle = mechBrowser.open(searchURL)
-    openGoogle.read()
-    response = mechBrowser.geturl()
+    urllib2Browser = browser
+    searchURL = "https://www.google.com/search?num=100&meta=&hl=enq&q=site%3A"+site+"%20filetype%3A"+type
+    openGoogle = urllib2Browser.open(searchURL)
+    response = openGoogle.geturl()
     return response
-
 
 def getDNSData(linklist,dnslist):
     dnsLookupList = []
@@ -159,19 +159,6 @@ def getDNSData(linklist,dnslist):
         except:
             continue
 
-def googleFileSearchForm(browser,site,type):
-    mechBrowser = browser
-    openGoogle = mechBrowser.open('https://www.google.com')
-    openGoogle.read()
-
-    search = 'site:'+site+' filetype:'+type
-
-    mechBrowser.select_form(nr=0)
-    mechBrowser.form['q']=search
-    mechBrowser.submit()
-    response = mechBrowser.geturl()
-    return response
-
 def beatifulSoupNextLink(scrape):
     soupy = BeautifulSoup(scrape)
     nextpage = soupy.find("a", {"id": "pnnext"})
@@ -181,19 +168,22 @@ def beatifulSoupNextLink(scrape):
         return None
 
 def viewPage(browser,url):
-    mechBrowser = browser
-    page = mechBrowser.open(url)
+    urllib2Browser = browser
+    page = urllib2Browser.open(url, timeout=2)
     page_source = page.read()
-    #print page_source
     return page_source
 
 def downloadPage(browser,url):
-    mechBrowser = browser
+
+    urllib2Browser = browser
     fileName_regex = re.compile('(?=\w+\.\w{3,4}$).+')
     encodeUrl = url.replace('(','%28').replace(')','%29')
     fileName = fileName_regex.findall(encodeUrl)[0]
     try:
-        mechBrowser.retrieve(encodeUrl,str(fileName))
+        docDownload = urllib2Browser.open(encodeUrl, timeout=5)
+        data = docDownload.read()
+        with open(str(fileName), "wb") as code:
+            code.write(data)
     except:
         print "\r\n[-] Failed on: " + encodeUrl + "\r\n"
 
@@ -216,7 +206,7 @@ def grabLinks(filetype,scrape,filelist):
             if link.endswith('.'+filetype):
                 filelist.append(link)
 
-def getMetaData(filename,userlist,softwarelist,logToFile):
+def getMetaData(filename,userlist,softwarelist):
     basic = '-all ' + filename
 
     try:
@@ -239,8 +229,6 @@ def getMetaData(filename,userlist,softwarelist,logToFile):
         if software:
             softwarelist.extend(software)
 
-        if logToFile:
-            dataToFile(metaDataRaw)
     except:
         print "\r\n[-] Metadata Error File: " + filename + "\r\n"
 
@@ -250,22 +238,23 @@ def strip_non_ascii(string):
     stripped = (c for c in string if 0 < ord(c) < 127)
     return ''.join(stripped)
 
-def googleFileFinder(site,examine,fileTypeList,logToFile):
+def googleFileFinder(site,examine,fileTypeList):
     waitBanner()
-    mechBrowser = mechBrowserBuild()
+    urllib2Browser = urllib2BrowserBuild()
     fileList = []
     typeList = fileTypeList
     dnsList = []
 
     for filetype in typeList:
-        #search = googleFileSearchForm(mechBrowser,site,filetype)
-        search = buildGoogleDocSearchURL(mechBrowser,site,filetype)
+
+        search = buildGoogleDocSearchURL(urllib2Browser,site,filetype)
 
         isNextPage = True
 
         while isNextPage == True:
-            scrape = viewPage(mechBrowser,search)
+            scrape = viewPage(urllib2Browser,search)
             grabLinks(filetype,scrape,fileList)
+
             nextPage = beatifulSoupNextLink(scrape)
             if nextPage == None:
                 isNextPage = False
@@ -284,8 +273,8 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
         print "\r\n"
         for link in tqdm.tqdm(links):
             try:
-                fileName = downloadPage(mechBrowser,link)
-                getMetaData(fileName, userList, softwareList, logToFile)
+                fileName = downloadPage(urllib2Browser,link)
+                getMetaData(fileName, userList, softwareList)
                 os.remove(fileName)
             except:
                 continue
@@ -311,10 +300,10 @@ def googleFileFinder(site,examine,fileTypeList,logToFile):
 
 def dataToFile(data):
     curDate = time.strftime("%Y-%m-%d")
-    filename = site+"-"+curDate+"-pyrecon.txt"
+    filename = site+"-"+curDate+"-track.txt"
     f = open(filename,'a')
     f.write(data)
-    f.write("**** PYRECON ****\r\n")
+    f.write("**** Track ****\r\n")
     f.close()
 
 '''
@@ -333,13 +322,13 @@ def beatifulSoupActiveLink(scrape,linkList):
     findHTTP = re.compile('(http.+)')
     soupy = BeautifulSoup(scrape)
     links = soupy.findAll("h3", {"class": "r"})
-    #noDocs_regex = re.compile('(.+(\.pdf|\.doc|\.docx))')
+    noDocs_regex = re.compile('(.+(\.pdf|\.doc|\.docx))')
     #noGoogleBooks = re.compile('books\.google\.com')
     for link in links:
         link2 = link.find("a")['href']
         if findHTTP.findall(link2):
-            linkList.append(link2)
-            #if not noDocs_regex.findall(link2):
+            if not noDocs_regex.findall(link2):
+                linkList.append(link2)
             #    if not noGoogleBooks.findall(link2):
 
 def getEmail(scrape,emaillist,site):
@@ -352,26 +341,25 @@ def getEmail(scrape,emaillist,site):
                 emaillist.append(email.lower())
 
 def buildGoogleSpecifcSearchURL(browser,site):
-    mechBrowser = browser
+    urllib2Browser = browser
     searchURL = 'https://www.google.com/search?q="'+site+'"&num=100'
-    openGoogle = mechBrowser.open(searchURL)
-    openGoogle.read()
-    response = mechBrowser.geturl()
+    openGoogle = urllib2Browser.open(searchURL)
+    response = openGoogle.geturl()
     return response
 
 
 def googleEmailFinder(site):
     waitBanner()
-    mechBrowser = mechBrowserBuild()
+    urllib2Browser = urllib2BrowserBuild()
     linkList = []
     emailList = []
     dnsList = []
-    search = buildGoogleSpecifcSearchURL(mechBrowser,site)
+    search = buildGoogleSpecifcSearchURL(urllib2Browser,site)
 
     isNextPage = True
 
     while isNextPage == True:
-        scrape = viewPage(mechBrowser,search)
+        scrape = viewPage(urllib2Browser,search)
 
         if cache:
             beatifulSoupCacheLink(scrape,linkList)
@@ -391,7 +379,7 @@ def googleEmailFinder(site):
 
     for link in tqdm.tqdm(links):
         try:
-            scrape = viewPage(mechBrowser,link)
+            scrape = viewPage(urllib2Browser,link)
             getEmail(scrape,emailList,site)
             if logData:
                 dataToFile(scrape)
@@ -415,13 +403,14 @@ def googleEmailFinder(site):
 
 def dnslookupHT(browser,site):
 
-    mechBrowser = browser
+    urllib2Browser = browser
     htLink = 'http://api.hackertarget.com/hostsearch/?q='+site
-    openHT = mechBrowser.open(htLink)
+    openHT = urllib2Browser.open(htLink)
     dnsDataRaw = openHT.read()
 
     dnsData = dnsDataRaw.replace(',',':').split('\n')
 
+    #htmlData('<h3>DNS Host Records</h3>'+dnsDataRaw.replace(',',':'))
 
     print "[+] DNS Host Records (%d):"%len(dnsData)
     for record in dnsData:
@@ -431,8 +420,49 @@ def dnslookupHT(browser,site):
 
 def hackerTargetDNS(site):
     waitBanner()
-    mechBrowser = mechBrowserBuild()
-    dnslookupHT(mechBrowser,site)
+    urllib2Browser = urllib2BrowserBuild()
+    dnslookupHT(urllib2Browser,site)
+
+def zoneTransferHT(browser,site):
+
+    urllib2Browser = browser
+    htLink = 'http://api.hackertarget.com/zonetransfer/?q='+site
+    openHT = urllib2Browser.open(htLink)
+    zoneTransferRaw = openHT.read()
+
+    #htmlData('<h3>Zone Transfer</h3>'+zoneTransferRaw)
+
+    print "[+] Zone Transfer Results:"
+    print zoneTransferRaw
+
+    print bcolors.BOLD + bcolors.Red + "(Zone Transfer provided by HackerTarget.com)" + bcolors.ENDC
+
+def hackerTargetZone(site):
+    waitBanner()
+    urllib2Browser = urllib2BrowserBuild()
+    zoneTransferHT(urllib2Browser,site)
+
+
+def htmlData(data,filename):
+    f = open(filename,'a')
+    f.write(data)
+    f.close()
+
+def htmlBeg(filename):
+
+    htmlBeg = '''
+    <html>
+    <header></header>
+    <body>
+    <pre>
+    ''' + asciiBanner
+
+def htmlEnd(filename):
+    htmlEnd = '''
+    </pre>
+    </body>
+    <html>
+    '''
 
 
 def main():
@@ -440,13 +470,13 @@ def main():
         parser.print_help()
         exampleUsage()
     if doc:
-        googleFileFinder(site,examine,fileTypeList,logData)
+        googleFileFinder(site,examine,fileTypeList)
     if emailSearch:
         googleEmailFinder(site)
     if dnslookup:
         hackerTargetDNS(site)
-
-
+    if zoneTransfer:
+        hackerTargetZone(site)
 
 if __name__ == "__main__":
     main()
