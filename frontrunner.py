@@ -36,13 +36,13 @@ class bcolors:
 
 
 asciiBanner = \
-    "\n    ______               _  ______ "\
-    "\n    |  ___|             | | | ___ \  "\
+    "\n    ______               _  ______ " \
+    "\n    |  ___|             | | | ___ \  " \
     "\n    | |_ _ __ ___  _ __ | |_| |_/ /   _ _ __  _ __   ___ _ __ " \
     "\n    |  _| '__/ _ \| '_ \| __|    / | | | '_ \| '_ \ / _ \ '__| " \
     "\n    | | | | | (_) | | | | |_| |\ \ |_| | | | | | | |  __/ |    " \
     "\n    \_| |_|  \___/|_| |_|\__\_| \_\__,_|_| |_|_| |_|\___|_|   " \
-    "\n "\
+    "\n " \
     "\n\r\n"
 
 
@@ -78,7 +78,8 @@ typeList = ["doc", "docx", "xls", "xlsx", "pdf", "ppt", "pptx", "pps", "ppsx", "
 
 parser = argparse.ArgumentParser(description=banner())
 
-parser.add_argument("-a", "--geteverything", help='This will perform document examination, email search, and dns lookup.', action="store_true")
+parser.add_argument("-a", "--geteverything",
+                    help='This will perform document examination, email search, and dns lookup.', action="store_true")
 
 parser.add_argument("-doc", "--documents", help='Specify document only search for metadata', action="store_true")
 parser.add_argument("-email", "--emailSearch", help='Specify email only search', action="store_true")
@@ -140,7 +141,6 @@ def pickAgent():
 
 
 def buildGoogleDocSearchURL(browser, site, type):
-
     searchURL = "https://www.google.com/search?num=100&meta=&hl=enq&q=site%3A" + site + "%20filetype%3A" + type
     openGoogle = browser.open(searchURL)
     response = openGoogle.geturl()
@@ -157,14 +157,12 @@ def beatifulSoupNextLink(scrape):
 
 
 def viewPage(browser, url):
-
     page = browser.open(url, timeout=2)
     page_source = page.read()
     return page_source
 
 
 def downloadPage(browser, url):
-
     fileName_regex = re.compile('(?=\w+\.\w{3,4}$).+')
     encodeUrl = url.replace('(', '%28').replace(')', '%29')
     fileName = fileName_regex.findall(encodeUrl)[0]
@@ -230,7 +228,7 @@ def strip_non_ascii(string):
     return ''.join(stripped)
 
 
-def discoverLinksForFiles(browser,fileListTmp,typeListTmp):
+def discoverLinksForFiles(browser, fileListTmp, typeListTmp):
     for filetype in typeListTmp:
         search = buildGoogleDocSearchURL(browser, site, filetype)
         isNextPage = True
@@ -243,7 +241,8 @@ def discoverLinksForFiles(browser,fileListTmp,typeListTmp):
             else:
                 search = nextPage
 
-def processLinksForFiles(browser,linkListTmp,userListTmp,softwareListTmp):
+
+def processLinksForFiles(browser, linkListTmp, userListTmp, softwareListTmp):
     for link in tqdm.tqdm(linkListTmp):
         try:
             fileName = downloadPage(browser, link)
@@ -251,6 +250,7 @@ def processLinksForFiles(browser,linkListTmp,userListTmp,softwareListTmp):
             os.remove(fileName)
         except:
             continue
+
 
 def googleFileFinder(site, fileTypeList):
     waitBanner()
@@ -260,7 +260,7 @@ def googleFileFinder(site, fileTypeList):
     softwareList = []
     userList = []
 
-    discoverLinksForFiles(urllib2Browser,fileList,typeList)
+    discoverLinksForFiles(urllib2Browser, fileList, typeList)
 
     links = list(set(fileList))
     print "\r\n[*] Discovered Links: \r\n"
@@ -268,7 +268,7 @@ def googleFileFinder(site, fileTypeList):
         print "\t[+]: " + link
     print "\r\n"
 
-    processLinksForFiles(urllib2Browser,links,userList,softwareList)
+    processLinksForFiles(urllib2Browser, links, userList, softwareList)
 
     result = list(set(userList))
     print "[*]Document Usernames\Emails: "
@@ -279,7 +279,6 @@ def googleFileFinder(site, fileTypeList):
     print "\r\n[*]Software: "
     for software in result:
         print "\t" + strip_non_ascii(software)
-
 
 
 def dataToFile(data):
@@ -337,7 +336,7 @@ def buildGoogleSpecifcSearchURL(browser, site):
     return response
 
 
-def discoverLinksForEmails(browser,search,linkListTmp):
+def discoverLinksForEmails(browser, search, linkListTmp):
     isNextPage = True
     while isNextPage == True:
         scrape = viewPage(browser, search)
@@ -352,7 +351,8 @@ def discoverLinksForEmails(browser,search,linkListTmp):
         else:
             search = nextPage
 
-def processLinksForEmails(browser,emailListTmp,linkListTmp):
+
+def processLinksForEmails(browser, emailListTmp, linkListTmp):
     for link in tqdm.tqdm(linkListTmp):
         try:
             scrape = viewPage(browser, link)
@@ -368,14 +368,14 @@ def googleEmailFinder(site):
     emailList = []
     searchlink = buildGoogleSpecifcSearchURL(urllib2Browser, site)
 
-    discoverLinksForEmails(urllib2Browser,searchlink,linkList)
+    discoverLinksForEmails(urllib2Browser, searchlink, linkList)
 
     links = list(set(linkList))
     print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
     for link in links:
         print "\t[+]: " + str(link)
 
-    processLinksForEmails(urllib2Browser,emailList,links)
+    processLinksForEmails(urllib2Browser, emailList, links)
 
     emails = list(set(emailList))
     print "\r\n[*]Emails Discovered (%d): " % len(emails)
@@ -383,9 +383,7 @@ def googleEmailFinder(site):
         print "\t" + email
 
 
-
 def dnslookupHT(browser, site):
-
     htLink = 'http://api.hackertarget.com/hostsearch/?q=' + site
     openHT = browser.open(htLink)
     dnsDataRaw = openHT.read()
@@ -405,7 +403,6 @@ def hackerTargetDNS(site):
 
 
 def zoneTransferHT(browser, site):
-
     htLink = 'http://api.hackertarget.com/zonetransfer/?q=' + site
     openHT = browser.open(htLink)
     zoneTransferRaw = openHT.read()
@@ -435,9 +432,8 @@ def emailAndDocumentSearch(site, fileTypeList):
 
     searchlink = buildGoogleSpecifcSearchURL(urllib2Browser, site)
 
-    discoverLinksForEmails(urllib2Browser,searchlink,linkList)
-    discoverLinksForFiles(urllib2Browser,fileList,typeList)
-
+    discoverLinksForEmails(urllib2Browser, searchlink, linkList)
+    discoverLinksForFiles(urllib2Browser, fileList, typeList)
 
     links = list(set(linkList + fileList))
     print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
@@ -445,10 +441,10 @@ def emailAndDocumentSearch(site, fileTypeList):
         print "\t[+]: " + str(link)
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
-    processLinksForEmails(urllib2Browser,emailList,list(set(linkList)))
+    processLinksForEmails(urllib2Browser, emailList, list(set(linkList)))
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
-    processLinksForFiles(urllib2Browser,list(set(fileList)),userList,softwareList)
+    processLinksForFiles(urllib2Browser, list(set(fileList)), userList, softwareList)
 
     emails = list(set(emailList))
     print "\r\n[*]Emails Discovered (%d): " % len(emails)
@@ -485,6 +481,7 @@ def main():
         hackerTargetZone(site)
     if everything:
         emailAndDocumentSearch(site, fileTypeList)
+
 
 if __name__ == "__main__":
     main()
