@@ -7,11 +7,7 @@ import tqdm
 import argparse
 import time
 import sys
-import dns.resolver
-import tldextract
 import urllib2
-
-
 from cookielib import CookieJar
 
 '''
@@ -76,6 +72,8 @@ typeList = ["doc", "docx", "xls", "xlsx", "pdf", "ppt", "pptx", "pps", "ppsx", "
 
 parser = argparse.ArgumentParser(description=banner())
 
+parser.add_argument("-a", "--geteverything", help='This will perform document examination, email search, and dns lookup.', action="store_true")
+
 parser.add_argument("-doc", "--documents", help='Specify document only search for metadata', action="store_true")
 parser.add_argument("-email", "--emailSearch", help='Specify email only search', action="store_true")
 
@@ -84,9 +82,7 @@ parser.add_argument("-c", "--cached",
                     action="store_true")
 
 parser.add_argument("-d", "--domain", help='Domain you want to search for documents')
-parser.add_argument("-e", "--examine", help='Switch to download and examine documents.'
-                                            'Documents are stored temporarily in the path the scrip was run from.',
-                    action="store_true")
+
 parser.add_argument("-t", "--type", nargs='+',
                     help='Specify file types separated by a space (" ") else all default types will be checked.'
                          'Default types:  doc,docx,xls,xlsx,pdf,ppt,pptx,pps,ppsx,sxw,sxc,odt,ods,odg,odp,wdp,svg,svgs,indd,rdp,ica',
@@ -105,10 +101,10 @@ parser.add_argument("-z", "--zoneTransfer",
 
 args = parser.parse_args()
 
+everything = args.geteverything
 doc = args.documents
 emailSearch = args.emailSearch
 site = args.domain
-examine = args.examine
 fileTypeList = args.type
 logData = args.logmeta
 cache = args.cached
@@ -141,41 +137,12 @@ def pickAgent():
     return userAgent
 
 
-def sleepS():
-    st = random.randint(1, 8)
-    time.sleep(st)
-
-
 def buildGoogleDocSearchURL(browser, site, type):
-    urllib2Browser = browser
+
     searchURL = "https://www.google.com/search?num=100&meta=&hl=enq&q=site%3A" + site + "%20filetype%3A" + type
-    openGoogle = urllib2Browser.open(searchURL)
+    openGoogle = browser.open(searchURL)
     response = openGoogle.geturl()
     return response
-
-
-def getDNSData(linklist, dnslist):
-    dnsLookupList = []
-    dnsResolver = dns.resolver.Resolver()
-    domain = re.compile('(?:https?://([a-zA-Z0-9\-\.]+))\/')
-    domainMatch = re.compile(site + '$')
-    for link in linklist:
-        dnsSites = domain.findall(link)
-        for dnsSite in dnsSites:
-            tldTest = tldextract.extract(dnsSite)
-            domainTLD = (tldTest.domain, tldTest.suffix)
-            domainTLD = '.'.join(domainTLD[:2])
-            if domainMatch.match(domainTLD):
-                dnsLookupList.append(dnsSite)
-    results = list(set(dnsLookupList))
-    for result in results:
-        try:
-            dnsAnswers = dnsResolver.query(result, "A")
-            for answer in dnsAnswers:
-                dnsStr = result + ':' + str(answer)
-                dnslist.append(dnsStr)
-        except:
-            continue
 
 
 def beatifulSoupNextLink(scrape):
@@ -188,19 +155,19 @@ def beatifulSoupNextLink(scrape):
 
 
 def viewPage(browser, url):
-    urllib2Browser = browser
-    page = urllib2Browser.open(url, timeout=2)
+
+    page = browser.open(url, timeout=2)
     page_source = page.read()
     return page_source
 
 
 def downloadPage(browser, url):
-    urllib2Browser = browser
+
     fileName_regex = re.compile('(?=\w+\.\w{3,4}$).+')
     encodeUrl = url.replace('(', '%28').replace(')', '%29')
     fileName = fileName_regex.findall(encodeUrl)[0]
     try:
-        docDownload = urllib2Browser.open(encodeUrl, timeout=5)
+        docDownload = browser.open(encodeUrl, timeout=5)
         data = docDownload.read()
         with open(str(fileName), "wb") as code:
             code.write(data)
@@ -261,65 +228,56 @@ def strip_non_ascii(string):
     return ''.join(stripped)
 
 
-def googleFileFinder(site, examine, fileTypeList):
-    waitBanner()
-    urllib2Browser = urllib2BrowserBuild()
-    fileList = []
-    typeList = fileTypeList
-    dnsList = []
-
-    for filetype in typeList:
-
-        search = buildGoogleDocSearchURL(urllib2Browser, site, filetype)
-
+def discoverLinksForFiles(browser,fileListTmp,typeListTmp):
+    for filetype in typeListTmp:
+        search = buildGoogleDocSearchURL(browser, site, filetype)
         isNextPage = True
-
         while isNextPage == True:
-            scrape = viewPage(urllib2Browser, search)
-            grabLinks(filetype, scrape, fileList)
-
+            scrape = viewPage(browser, search)
+            grabLinks(filetype, scrape, fileListTmp)
             nextPage = beatifulSoupNextLink(scrape)
             if nextPage == None:
                 isNextPage = False
             else:
                 search = nextPage
 
+def processLinksForFiles(browser,linkListTmp,userListTmp,softwareListTmp):
+    for link in tqdm.tqdm(linkListTmp):
+        try:
+            fileName = downloadPage(browser, link)
+            getMetaData(fileName, userListTmp, softwareListTmp)
+            os.remove(fileName)
+        except:
+            continue
+
+def googleFileFinder(site, fileTypeList):
+    waitBanner()
+    urllib2Browser = urllib2BrowserBuild()
+    fileList = []
+    typeList = fileTypeList
+    softwareList = []
+    userList = []
+
+    discoverLinksForFiles(urllib2Browser,fileList,typeList)
+
     links = list(set(fileList))
     print "\r\n[*] Discovered Links: \r\n"
     for link in links:
         print "\t[+]: " + link
+    print "\r\n"
 
-    if examine:
-        softwareList = []
-        userList = []
+    processLinksForFiles(urllib2Browser,links,userList,softwareList)
 
-        print "\r\n"
-        for link in tqdm.tqdm(links):
-            try:
-                fileName = downloadPage(urllib2Browser, link)
-                getMetaData(fileName, userList, softwareList)
-                os.remove(fileName)
-            except:
-                continue
+    result = list(set(userList))
+    print "[*]Document Usernames\Emails: "
+    for user in result:
+        print "\t" + user
 
-        result = list(set(userList))
-        print "[*]Usernames\Emails: "
-        for user in result:
-            print "\t" + user
+    result = list(set(softwareList))
+    print "\r\n[*]Software: "
+    for software in result:
+        print "\t" + strip_non_ascii(software)
 
-        result = list(set(softwareList))
-        print "\r\n[*]Software: "
-        for software in result:
-            print "\t" + strip_non_ascii(software)
-
-        getDNSData(links, dnsList)
-
-        print "\r\n[*]DNS A Records: "
-        if len(dnsList) > 0:
-            for dnsResult in dnsList:
-                print "\t" + dnsResult
-        else:
-            print "\t[-]No DNS A records discovered"
 
 
 def dataToFile(data):
@@ -371,11 +329,34 @@ def getEmail(scrape, emaillist, site):
 
 
 def buildGoogleSpecifcSearchURL(browser, site):
-    urllib2Browser = browser
     searchURL = 'https://www.google.com/search?q="' + site + '"&num=100'
-    openGoogle = urllib2Browser.open(searchURL)
+    openGoogle = browser.open(searchURL)
     response = openGoogle.geturl()
     return response
+
+
+def discoverLinksForEmails(browser,search,linkListTmp):
+    isNextPage = True
+    while isNextPage == True:
+        scrape = viewPage(browser, search)
+
+        if cache:
+            beatifulSoupCacheLink(scrape, linkListTmp)
+        else:
+            beatifulSoupActiveLink(scrape, linkListTmp)
+        nextPage = beatifulSoupNextLink(scrape)
+        if nextPage == None:
+            isNextPage = False
+        else:
+            search = nextPage
+
+def processLinksForEmails(browser,emailListTmp,linkListTmp):
+    for link in tqdm.tqdm(linkListTmp):
+        try:
+            scrape = viewPage(browser, link)
+            getEmail(scrape, emailListTmp, site)
+        except:
+            continue
 
 
 def googleEmailFinder(site):
@@ -383,63 +364,31 @@ def googleEmailFinder(site):
     urllib2Browser = urllib2BrowserBuild()
     linkList = []
     emailList = []
-    dnsList = []
-    search = buildGoogleSpecifcSearchURL(urllib2Browser, site)
+    searchlink = buildGoogleSpecifcSearchURL(urllib2Browser, site)
 
-    isNextPage = True
-
-    while isNextPage == True:
-        scrape = viewPage(urllib2Browser, search)
-
-        if cache:
-            beatifulSoupCacheLink(scrape, linkList)
-        else:
-            beatifulSoupActiveLink(scrape, linkList)
-
-        nextPage = beatifulSoupNextLink(scrape)
-        if nextPage == None:
-            isNextPage = False
-        else:
-            search = nextPage
+    discoverLinksForEmails(urllib2Browser,searchlink,linkList)
 
     links = list(set(linkList))
     print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
     for link in links:
         print "\t[+]: " + str(link)
 
-    for link in tqdm.tqdm(links):
-        try:
-            scrape = viewPage(urllib2Browser, link)
-            getEmail(scrape, emailList, site)
-            if logData:
-                dataToFile(scrape)
-        except:
-            continue
+    processLinksForEmails(urllib2Browser,emailList,links)
 
     emails = list(set(emailList))
     print "\r\n[*]Emails Discovered (%d): " % len(emails)
     for email in emails:
         print "\t" + email
 
-    getDNSData(links, dnsList)
-
-    print "\r\n[*]DNS A Records: "
-    if len(dnsList) > 0:
-        for dnsResult in dnsList:
-            print "\t" + dnsResult
-    else:
-        print "\t[-]No DNS A records discovered"
 
 
 def dnslookupHT(browser, site):
-    urllib2Browser = browser
+
     htLink = 'http://api.hackertarget.com/hostsearch/?q=' + site
-    openHT = urllib2Browser.open(htLink)
+    openHT = browser.open(htLink)
     dnsDataRaw = openHT.read()
 
     dnsData = dnsDataRaw.replace(',', ':').split('\n')
-
-    # htmlData('<h3>DNS Host Records</h3>'+dnsDataRaw.replace(',',':'))
 
     print "[+] DNS Host Records (%d):" % len(dnsData)
     for record in dnsData:
@@ -449,15 +398,14 @@ def dnslookupHT(browser, site):
 
 
 def hackerTargetDNS(site):
-    waitBanner()
     urllib2Browser = urllib2BrowserBuild()
     dnslookupHT(urllib2Browser, site)
 
 
 def zoneTransferHT(browser, site):
-    urllib2Browser = browser
+
     htLink = 'http://api.hackertarget.com/zonetransfer/?q=' + site
-    openHT = urllib2Browser.open(htLink)
+    openHT = browser.open(htLink)
     zoneTransferRaw = openHT.read()
 
     # htmlData('<h3>Zone Transfer</h3>'+zoneTransferRaw)
@@ -469,9 +417,54 @@ def zoneTransferHT(browser, site):
 
 
 def hackerTargetZone(site):
-    waitBanner()
     urllib2Browser = urllib2BrowserBuild()
     zoneTransferHT(urllib2Browser, site)
+
+
+def emailAndDocumentSearch(site, fileTypeList):
+    waitBanner()
+    urllib2Browser = urllib2BrowserBuild()
+    linkList = []
+    emailList = []
+    fileList = []
+    typeList = fileTypeList
+    softwareList = []
+    userList = []
+
+    searchlink = buildGoogleSpecifcSearchURL(urllib2Browser, site)
+
+    discoverLinksForEmails(urllib2Browser,searchlink,linkList)
+    discoverLinksForFiles(urllib2Browser,fileList,typeList)
+
+
+    links = list(set(linkList + fileList))
+    print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
+    for link in links:
+        print "\t[+]: " + str(link)
+
+    print "\r\n[*] Processing Email Links: \r\n"
+    processLinksForEmails(urllib2Browser,emailList,list(set(linkList)))
+
+    print "\r\n[*] Processing File Links: \r\n"
+    processLinksForFiles(urllib2Browser,list(set(fileList)),userList,softwareList)
+
+    emails = list(set(emailList))
+    print "\r\n[*]Emails Discovered (%d): " % len(emails)
+    for email in emails:
+        print "\t" + email
+
+    result = list(set(userList))
+    print "\r\n[*]Document Usernames\Emails: "
+    for user in result:
+        print "\t" + user
+
+    result = list(set(softwareList))
+    print "\r\n[*]Software: "
+    for software in result:
+        print "\t" + strip_non_ascii(software)
+
+    print "\r\n"
+    hackerTargetDNS(site)
 
 
 def main():
@@ -479,14 +472,17 @@ def main():
         parser.print_help()
         exampleUsage()
     if doc:
-        googleFileFinder(site, examine, fileTypeList)
+        googleFileFinder(site, fileTypeList)
     if emailSearch:
         googleEmailFinder(site)
     if dnslookup:
+        waitBanner()
         hackerTargetDNS(site)
     if zoneTransfer:
+        waitBanner()
         hackerTargetZone(site)
-
+    if everything:
+        emailAndDocumentSearch(site, fileTypeList)
 
 if __name__ == "__main__":
     main()
