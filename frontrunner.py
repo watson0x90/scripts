@@ -84,7 +84,7 @@ parser.add_argument("-doc", "--documents", help='Specify document only search fo
 parser.add_argument("-email", "--emailSearch", help='Specify email only search', action="store_true")
 
 parser.add_argument("-c", "--cached",
-                    help='Specify to only work with Google Cached Text only links. Might get captcha!',
+                    help='Specify to only work with Google Cached Text only links. Might get captcha! Currently only works for searching emails.',
                     action="store_true")
 
 parser.add_argument("-d", "--domain", help='Domain you want to search for documents')
@@ -93,9 +93,6 @@ parser.add_argument("-t", "--type", nargs='+',
                     help='Specify file types separated by a space (" ") else all default types will be checked.'
                          'Default types:  doc,docx,xls,xlsx,pdf,ppt,pptx,pps,ppsx,sxw,sxc,odt,ods,odg,odp,wdp,svg,svgs,indd,rdp,ica',
                     default=typeList)
-
-parser.add_argument("-l", "--logmeta", help='Log all metadata pulled from files. Saves .txt file in current directory',
-                    action="store_true")
 
 parser.add_argument("-dns", "--dnslookup",
                     help='Requests DNS Host Record information from hackertarget.com. Thanks @hackertarget!',
@@ -112,7 +109,6 @@ doc = args.documents
 emailSearch = args.emailSearch
 site = args.domain
 fileTypeList = args.type
-logData = args.logmeta
 cache = args.cached
 dnslookup = args.dnslookup
 zoneTransfer = args.zoneTransfer
