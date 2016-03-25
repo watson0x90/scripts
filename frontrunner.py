@@ -61,10 +61,16 @@ def exampleUsage():
     print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -email -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Default document search (search for all document types):" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -e -d example.com" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com" + bcolors.ENDC
 
-    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Specific document search:" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Specific filetype document search:" + bcolors.ENDC
     print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
+
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Document & Email search:" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -a -d example.com \r\n" + bcolors.ENDC
+
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Document & Email search (specific filetype):" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -a -d example.com -t doc xlsx\r\n" + bcolors.ENDC
 
 
 typeList = ["doc", "docx", "xls", "xlsx", "pdf", "ppt", "pptx", "pps", "ppsx", "sxw", "sxc", "odt", "ods", "odg", "odp",
