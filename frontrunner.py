@@ -444,10 +444,10 @@ def emailAndDocumentSearch(site, fileTypeList):
     for link in links:
         print "\t[+]: " + str(link)
 
-    print "\r\n[*] Processing Email Links: \r\n"
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
     processLinksForEmails(urllib2Browser,emailList,list(set(linkList)))
 
-    print "\r\n[*] Processing File Links: \r\n"
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
     processLinksForFiles(urllib2Browser,list(set(fileList)),userList,softwareList)
 
     emails = list(set(emailList))
