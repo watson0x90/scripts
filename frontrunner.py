@@ -64,12 +64,12 @@ def exampleUsage():
     print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Specific filetype document search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com -t doc xlsx\r\n" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -doc -d example.com -t doc xlsx" + bcolors.ENDC
 
     print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Document & Email search:" + bcolors.ENDC
-    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -a -d example.com \r\n" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -a -d example.com" + bcolors.ENDC
 
-    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Document & Email search (specific filetype):" + bcolors.ENDC
+    print bcolors.BOLD + bcolors.Yellow + "\r\n[*]Document & Email search specific filetype:" + bcolors.ENDC
     print bcolors.BOLD + bcolors.Yellow + "\t python frontrunner.py -a -d example.com -t doc xlsx\r\n" + bcolors.ENDC
 
 
@@ -243,7 +243,8 @@ def discoverLinksForFiles(browser, fileListTmp, typeListTmp):
 
 
 def processLinksForFiles(browser, linkListTmp, userListTmp, softwareListTmp):
-    for link in tqdm.tqdm(linkListTmp):
+    descC = bcolors.BOLD + bcolors.Red + "Processing File Links" + bcolors.ENDC
+    for link in tqdm.tqdm(linkListTmp,desc=descC):
         try:
             fileName = downloadPage(browser, link)
             getMetaData(fileName, userListTmp, softwareListTmp)
@@ -353,7 +354,8 @@ def discoverLinksForEmails(browser, search, linkListTmp):
 
 
 def processLinksForEmails(browser, emailListTmp, linkListTmp):
-    for link in tqdm.tqdm(linkListTmp):
+    descC = bcolors.BOLD + bcolors.Red + "Processing Email Links" + bcolors.ENDC
+    for link in tqdm.tqdm(linkListTmp,desc=descC):
         try:
             scrape = viewPage(browser, link)
             getEmail(scrape, emailListTmp, site)
@@ -374,6 +376,7 @@ def googleEmailFinder(site):
     print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
     for link in links:
         print "\t[+]: " + str(link)
+    print "\r\n"
 
     processLinksForEmails(urllib2Browser, emailList, links)
 
@@ -438,12 +441,12 @@ def emailAndDocumentSearch(site, fileTypeList):
     links = list(set(linkList + fileList))
     print "\r\n[*] Discovered Links (%d): \r\n" % len(links)
     for link in links:
-        print "\t[+]: " + str(link)
+        print "\t[+]: " + str(link) + "\r\n"
 
-    print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
+    #print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
     processLinksForEmails(urllib2Browser, emailList, list(set(linkList)))
 
-    print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
+    #print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
     processLinksForFiles(urllib2Browser, list(set(fileList)), userList, softwareList)
 
     emails = list(set(emailList))
