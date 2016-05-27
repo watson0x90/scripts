@@ -1,5 +1,9 @@
 #!/usr/bin/python
 import boto
+'''
+Use this script at your own risk. I am not repsonsible for any disruption or impact this may cause. 
+Remeber you found this on the interwebs!
+'''
 
 # Enter in Access & Secret Key
 ACCESS_KEY = ""
@@ -36,7 +40,7 @@ def create_account():
             print "[-] Failed executing method 'put_user_policy()'"
             print "[-] Execute command: aws iam attach-user-policy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess --user-name %s" % new_account_name
         
-
+    #create AWS Web Console Login
     iam.create_login_profile(new_account_name,new_account_password)
 
     print "User %s created with password %s" % (new_account_name, new_account_password)
