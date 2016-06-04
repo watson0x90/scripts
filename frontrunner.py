@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from BeautifulSoup import BeautifulSoup
 import random
 import re
@@ -13,12 +15,18 @@ from cookielib import CookieJar
 '''
 Dependencies:
     1) exiftool.exe must be placed in the same location as python script
-    2) pip install tqdm mechanize beautifulsoup tldextract dnspython
+    2) pip install tqdm beautifulsoup
+
+Todo:
+    1) Add support for unix style systems so that it can be ran on both
+        Windows and Unix systems. This can however be ran without the document
+        inspection option.
 '''
 
 
 class bcolors:
-    '''Colors'''
+
+    # Colors
     Default = '\033[99m'
     Cyan = '\033[96m'
     White = '\033[97m'
@@ -29,7 +37,8 @@ class bcolors:
     Green = '\033[92m'
     Yellow = '\033[93m'
     Red = '\033[91m'
-    '''Enhancers'''
+
+    # Enhancers
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
@@ -127,6 +136,11 @@ def urllib2BrowserBuild():
     return browser
 
 
+'''
+Here you can add to the User-Agent list
+'''
+
+
 def pickAgent():
     userAgentList = [
         "Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Geck",
@@ -157,9 +171,12 @@ def beatifulSoupNextLink(scrape):
 
 
 def viewPage(browser, url):
-    page = browser.open(url, timeout=2)
-    page_source = page.read()
-    return page_source
+    try:
+        page = browser.open(url, timeout=1)
+        page_source = page.read()
+        return page_source
+    except:
+        pass
 
 
 def downloadPage(browser, url):
@@ -223,7 +240,7 @@ def getMetaData(filename, userlist, softwarelist):
 
 
 def strip_non_ascii(string):
-    ''' Returns the string without non ASCII characters'''
+    # Returns the string without non ASCII characters
     stripped = (c for c in string if 0 < ord(c) < 127)
     return ''.join(stripped)
 
@@ -244,7 +261,7 @@ def discoverLinksForFiles(browser, fileListTmp, typeListTmp):
 
 def processLinksForFiles(browser, linkListTmp, userListTmp, softwareListTmp):
     descC = bcolors.BOLD + bcolors.Red + "Processing File Links" + bcolors.ENDC
-    for link in tqdm.tqdm(linkListTmp,desc=descC):
+    for link in tqdm.tqdm(linkListTmp, desc=descC):
         try:
             fileName = downloadPage(browser, link)
             getMetaData(fileName, userListTmp, softwareListTmp)
@@ -355,7 +372,7 @@ def discoverLinksForEmails(browser, search, linkListTmp):
 
 def processLinksForEmails(browser, emailListTmp, linkListTmp):
     descC = bcolors.BOLD + bcolors.Red + "Processing Email Links" + bcolors.ENDC
-    for link in tqdm.tqdm(linkListTmp,desc=descC):
+    for link in tqdm.tqdm(linkListTmp, desc=descC):
         try:
             scrape = viewPage(browser, link)
             getEmail(scrape, emailListTmp, site)
@@ -443,10 +460,10 @@ def emailAndDocumentSearch(site, fileTypeList):
     for link in links:
         print "\t[+]: " + str(link) + "\r\n"
 
-    #print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
+    # print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing Email Links: \r\n" + bcolors.ENDC
     processLinksForEmails(urllib2Browser, emailList, list(set(linkList)))
 
-    #print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
+    # print bcolors.BOLD + bcolors.Yellow + "\r\n[#] Processing File Links: \r\n" + bcolors.ENDC
     processLinksForFiles(urllib2Browser, list(set(fileList)), userList, softwareList)
 
     emails = list(set(emailList))
