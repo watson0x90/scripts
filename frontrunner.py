@@ -20,7 +20,7 @@ Dependencies:
 Todo:
     1) Add support for unix style systems so that it can be ran on both
         Windows and Unix systems. This can however be ran without the document
-        inspection option.
+        inspection option on unix systems.
 '''
 
 
