@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from BeautifulSoup import BeautifulSoup
+from cookielib import CookieJar
 import random
 import re
 import subprocess
@@ -10,7 +11,8 @@ import argparse
 import time
 import sys
 import urllib2
-from cookielib import CookieJar
+import socket
+
 
 '''
 Dependencies:
@@ -20,7 +22,7 @@ Dependencies:
 Todo:
     1) Add support for unix style systems so that it can be ran on both
         Windows and Unix systems. This can however be ran without the document
-        inspection option on unix systems.
+        inspection option.
 '''
 
 
@@ -175,7 +177,9 @@ def viewPage(browser, url):
         page = browser.open(url, timeout=1)
         page_source = page.read()
         return page_source
-    except:
+    except urllib2.URLError:
+        pass
+    except socket.timeout:
         pass
 
 
