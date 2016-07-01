@@ -9,8 +9,6 @@ function Get-FolderACL
 		
     )
 
-    #$PathsToSearch = (Get-ChildItem $Path -Directory).FullName
-
     $PathsToSearch = (Get-ChildItem $Path |
         Where-Object -FilterScript {
             $_.PSIsContainer 
