@@ -42,10 +42,13 @@ def exampleUsage():
 parser = argparse.ArgumentParser(description=banner())
 parser.add_argument("-in", "--infile", help='Specify password file to analyze in format username:password')
 parser.add_argument("-out", "--outfile", help='Specify csv file to output results to, example: analyzed.csv')
-
 args = parser.parse_args()
 
 def main():
+
+    if args.infile is None or args.outfile is None:
+        parser.print_help()
+        exit()
 
     analyzeFile = args.infile
     outFile = args.outfile
@@ -77,9 +80,10 @@ def main():
     for line in passFile:
         temp = line.split(':')
         for index, row in compTable.iterrows():
-            if(re.match(compTable.get_value(index,'regex'),temp[1].rstrip('\n'))):
-                compTable.set_value(index,'count',compTable.get_value(index,'count')+1)
-                line = pd.DataFrame({'username':[temp[0].rstrip('\n')],'password':[temp[1].rstrip('\n')],'length':[int(countLength(temp[1].rstrip('\n')))],'complexity':[compTable.get_value(index,'complexity')]})
+            if(re.match(compTable.at[index,'regex'],temp[1].rstrip('\n'))):
+                #compTable.set_value(index,'count',compTable.at[index,'count']+1)
+                compTable.at[index, 'count']=compTable.at[index, 'count'] + 1
+                line = pd.DataFrame({'username':[temp[0].rstrip('\n')],'password':[temp[1].rstrip('\n')],'length':[int(countLength(temp[1].rstrip('\n')))],'complexity':[compTable.at[index,'complexity']]})
                 resTable = resTable.append(line)
                 break
 
